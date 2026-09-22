@@ -31,11 +31,9 @@ def build_dispatcher() -> Dispatcher:
     dp.message.middleware(BlockedUserMiddleware())
     dp.callback_query.middleware(BlockedUserMiddleware())
 
-<<<<<<< HEAD
-    from handlers.user import start, ads, orders, mine, referral, complaint
-=======
-    from handlers.user import start, menu, ads, orders, mine, referral, complaint
->>>>>>> 963967d (Render deploy uchun tayyor)
+  from handlers.user import start, ads, orders, mine, referral, complaint
+from handlers.user import start, menu, ads, orders, mine, referral, complaint
+963967d (Render deploy uchun tayyor)
     from handlers.admin import panel, broadcast, receipts, sign
 
     # Foydalanuvchi routerlari
