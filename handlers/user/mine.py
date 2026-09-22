@@ -60,9 +60,14 @@ async def item_view(cq: CallbackQuery):
     label = kb.STATUS_LABELS.get(item["status"], item["status"])
     body = item.get("caption") or item.get("text") or ""
     text = (f"🆔 {item['public_code']}\n📌 Holat: {label}\n\n{body}")
+<<<<<<< HEAD
     can_complete = item["status"] == "PUBLISHED"
     await cq.message.answer(
         text, reply_markup=kb.item_detail_kb(kind, item_id, can_complete))
+=======
+    await cq.message.answer(
+        text, reply_markup=kb.item_detail_kb(kind, item_id, item["status"]))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 
 @router.callback_query(F.data.regexp(r"^(ad|order):back_list$"))

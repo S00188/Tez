@@ -108,11 +108,26 @@ def items_list_kb(items, kind: str):
     return ipb(rows, widths=(1,))
 
 
+<<<<<<< HEAD
 def item_detail_kb(kind: str, item_id: int, can_complete: bool):
     rows = [(f"{kind}:back_list", "⬅️ Ro'yxatga")]
     if can_complete:
         rows.insert(0, (f"{kind}:complete:{item_id}", "✅ Bajarildi deb belgilash"))
         rows.insert(1, (f"{kind}:delete:{item_id}", "🗑 O'chirish"))
+=======
+def item_detail_kb(kind: str, item_id: int, status: str):
+    """Har qanday holatdagi (faqat allaqachon o'chirilgan bo'lmasa) e'lon/
+    zakaz uchun "O'chirish" tugmasini ko'rsatadi — avval faqat PUBLISHED
+    holatida ko'rinar edi, shu sabab bekor qilingan/rad etilgan/to'lov
+    kutayotgan yozuvlarni foydalanuvchi o'zi hech qachon o'chira olmas,
+    kvotasi abadiy band bo'lib qolar edi. "Bajarildi" tugmasi esa faqat
+    kanalda joylashtirilgan (PUBLISHED) elementlar uchun mantiqan to'g'ri."""
+    rows = [(f"{kind}:back_list", "⬅️ Ro'yxatga")]
+    if status == "PUBLISHED":
+        rows.insert(0, (f"{kind}:complete:{item_id}", "✅ Bajarildi deb belgilash"))
+    if status != "DELETED":
+        rows.insert(0, (f"{kind}:delete:{item_id}", "🗑 O'chirish"))
+>>>>>>> 963967d (Render deploy uchun tayyor)
     return ipb(rows, widths=(1,))
 
 
@@ -121,6 +136,10 @@ STATUS_LABELS = {
     "WAITING_PAYMENT": "to'lov kutilmoqda",
     "WAITING_RECEIPT": "chek kutilmoqda",
     "WAITING_ADMIN": "admin tasdig'i kutilmoqda",
+<<<<<<< HEAD
+=======
+    "PROCESSING": "to'lov qayta ishlanmoqda",
+>>>>>>> 963967d (Render deploy uchun tayyor)
     "APPROVED": "tasdiqlangan",
     "PUBLISHED": "kanalda e'lon qilingan",
     "REJECTED": "rad etilgan",
@@ -182,7 +201,52 @@ def admin_sections_kb():
         ("admin:settings", "⚙️ Sozlamalar"),
         ("admin:sign", "✍️ Kanal imzosi"),
         ("admin:broadcast", "📣 Reklama yuborish"),
+<<<<<<< HEAD
     ], widths=(2, 2, 2, 2, 1))
+=======
+        ("admin:admins", "👤 Adminlar"),
+    ], widths=(2, 2, 2, 2, 1, 1))
+
+
+def admins_menu_kb():
+    return ipb([
+        ("admin:add_admin", "➕ Admin qo'shish"),
+        ("admin:remove_admin", "➖ Admin olib tashlash"),
+        ("admin:sections", "⬅️ Orqaga"),
+    ], widths=(1, 1, 1))
+
+
+def pending_pagination_kb(offset, total, per_page=1):
+    """Kutilayotgan to'lovlar/shikoyatlar ro'yxatida "Keyingisi" tugmasi."""
+    rows = []
+    if offset + per_page < total:
+        rows.append((f"admin:pending:next:{offset + per_page}", "➡️ Keyingisi"))
+    rows.append(("admin:sections", "⬅️ Admin menyu"))
+    return ipb(rows, widths=(1,))
+
+
+def complaints_pagination_kb(offset, total, complaint_id, per_page=1):
+    rows = [
+        (f"complaint:delete_post:{complaint_id}", "🗑 Postni o'chirish"),
+        (f"complaint:block_user:{complaint_id}", "🚫 Userni bloklash"),
+        (f"complaint:dismiss:{complaint_id}", "✅ E'tiborsiz qoldirish"),
+    ]
+    if offset + per_page < total:
+        rows.append((f"admin:complaints:next:{offset + per_page}", "➡️ Keyingisi"))
+    rows.append(("admin:sections", "⬅️ Admin menyu"))
+    return ipb(rows, widths=(1, 1, 1, 1))
+
+
+def admin_item_detail_kb(kind: str, item_id: int, page_offset: int = 0):
+    """Admin panelidagi ro'yxatdagi bitta e'lon/zakazni o'chirish imkoni
+    (avval admin panelida individual item'ni o'chirish imkoniyati umuman
+    yo'q edi)."""
+    section = "admin:ads" if kind == "ad" else "admin:orders"
+    return ipb([
+        (f"admin:item_delete:{kind}:{item_id}:{page_offset}", "🗑 O'chirish"),
+        (f"{section}:{page_offset}", "⬅️ Ro'yxatga"),
+    ], widths=(1, 1))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 
 def settings_list_kb(keys_labels):

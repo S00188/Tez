@@ -27,11 +27,16 @@ async def _find_by_code(code):
     return None, None
 
 
+<<<<<<< HEAD
 @router.callback_query(F.data == "admin:complaints")
+=======
+@router.callback_query(F.data.regexp(r"^admin:complaints(:next:(\d+))?$"))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 async def admin_complaints(cq: CallbackQuery):
     if not await _guard(cq):
         await cq.answer("⛔️", show_alert=True)
         return
+<<<<<<< HEAD
     complaints = await repo.list_complaints("OPEN", limit=1)
     total = await repo.count_complaints("OPEN")
     await cq.answer()
@@ -45,6 +50,24 @@ async def admin_complaints(cq: CallbackQuery):
         f"🆔 {c['target_code']}\nSabab: {c['reason']}\n"
         f"Shikoyatchi: {c['user_id']}",
         reply_markup=kb.complaint_admin_kb(c["id"]))
+=======
+    parts = cq.data.split(":")
+    offset = int(parts[2]) if len(parts) > 2 else 0
+    complaints = await repo.list_complaints("OPEN", limit=1, offset=offset)
+    total = await repo.count_complaints("OPEN")
+    await cq.answer()
+    if not complaints:
+        text = "✅ Ochiq shikoyatlar yo'q." if offset == 0 else \
+            "✅ Boshqa ochiq shikoyat yo'q."
+        await cq.message.edit_text(text, reply_markup=kb.back_to_admin_kb())
+        return
+    c = complaints[0]
+    await cq.message.edit_text(
+        f"⚠️ Ochiq shikoyatlar: {total} ta ({offset + 1}-{offset + 1})\n\n"
+        f"🆔 {c['target_code']}\nSabab: {c['reason']}\n"
+        f"Shikoyatchi: {c['user_id']}",
+        reply_markup=kb.complaints_pagination_kb(offset, total, c["id"]))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 
 @router.callback_query(F.data.startswith("complaint:delete_post:"))

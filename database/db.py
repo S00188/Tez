@@ -139,9 +139,32 @@ async def get_db():
     return _conn
 
 
+<<<<<<< HEAD
 async def init_db():
     db = await get_db()
     await db.executescript(SCHEMA)
+=======
+async def _add_column_if_missing(db, table, column, ddl):
+    """SQLite'da 'ALTER TABLE ... ADD COLUMN IF NOT EXISTS' yo'q, shuning
+    uchun ustun mavjudligini tekshirib, yo'q bo'lsagina qo'shamiz. Eski
+    bazalarni buzmasdan yangi ustunlarni migratsiya qilish uchun."""
+    cur = await db.execute(f"PRAGMA table_info({table})")
+    cols = {r[1] for r in await cur.fetchall()}
+    if column not in cols:
+        await db.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+
+
+async def init_db():
+    db = await get_db()
+    await db.executescript(SCHEMA)
+
+    # ---- migratsiyalar (eski bazalarga yangi ustunlarni qo'shish) ----
+    await _add_column_if_missing(
+        db, "users", "referral_bonus_paid",
+        "referral_bonus_paid INTEGER NOT NULL DEFAULT 0")
+    await db.commit()
+
+>>>>>>> 963967d (Render deploy uchun tayyor)
     cur = await db.execute("SELECT COUNT(*) FROM settings")
     if (await cur.fetchone())[0] == 0:
         await db.executemany(

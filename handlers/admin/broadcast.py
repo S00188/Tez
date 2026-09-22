@@ -3,6 +3,10 @@ import asyncio
 import logging
 
 from aiogram import F, Router
+<<<<<<< HEAD
+=======
+from aiogram.exceptions import TelegramForbiddenError
+>>>>>>> 963967d (Render deploy uchun tayyor)
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -14,6 +18,14 @@ from states import BroadcastStates
 logger = logging.getLogger(__name__)
 router = Router(name="admin_broadcast")
 
+<<<<<<< HEAD
+=======
+# Bir vaqtning o'zida faqat bitta broadcast yuborilishi uchun oddiy flag.
+# "bcast:confirm" ikki marta tez bosilsa (yoki ikkita admin bir vaqtda
+# bossa), hammaga ikki marta xabar ketib qolishining oldini oladi.
+_broadcast_in_progress = False
+
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 @router.callback_query(F.data == "admin:broadcast")
 async def cb_broadcast_start(cq: CallbackQuery, state: FSMContext):
@@ -51,6 +63,7 @@ async def bcast_cancel(cq: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "bcast:confirm")
 async def bcast_confirm(cq: CallbackQuery, state: FSMContext):
+<<<<<<< HEAD
     if not await repo.is_admin(cq.from_user.id):
         await cq.answer("⛔️", show_alert=True)
         return
@@ -81,3 +94,58 @@ async def bcast_confirm(cq: CallbackQuery, state: FSMContext):
     await cq.message.answer(
         f"✅ Reklama yuborildi!\n\n📨 Muvaffaqiyatli: {sent}\n❌ Xato: {failed}",
         reply_markup=kb.admin_sections_kb())
+=======
+    global _broadcast_in_progress
+    if not await repo.is_admin(cq.from_user.id):
+        await cq.answer("⛔️", show_alert=True)
+        return
+
+    # Tugmani ikki marta tez bosish (yoki bir vaqtda ikkita admin bosishi)
+    # orqali xabar hammaga ikki marta ketib qolishining oldini olish.
+    if _broadcast_in_progress:
+        await cq.answer("⏳ Reklama allaqachon yuborilmoqda, kuting.", show_alert=True)
+        return
+    _broadcast_in_progress = True
+    try:
+        data = await state.get_data()
+        await state.clear()
+        photo = data.get("photo")
+        text = data.get("text") or ""
+        if not photo and not text:
+            await cq.answer("Yuboriladigan matn topilmadi.", show_alert=True)
+            return
+        await cq.answer("📤 Yuborilmoqda...")
+        await cq.message.edit_text("📤 Yuborish boshlandi, biroz kuting...")
+
+        users = await repo.list_users(limit=100000)
+        sent, failed, blocked = 0, 0, 0
+        for u in users:
+            if u.get("is_blocked"):
+                continue
+            try:
+                if photo:
+                    await cq.bot.send_photo(u["telegram_id"], photo, caption=text)
+                else:
+                    await cq.bot.send_message(u["telegram_id"], text)
+                sent += 1
+            except TelegramForbiddenError:
+                # Foydalanuvchi botni bloklagan/o'chirgan — keyingi
+                # broadcastlarda unga qayta urinib vaqt sarflamaslik uchun
+                # is_blocked=1 qilib belgilaymiz.
+                await repo.set_blocked(u["telegram_id"], True)
+                blocked += 1
+                failed += 1
+            except Exception:
+                failed += 1
+            await asyncio.sleep(0.05)  # Telegram flood-limitiga tushmaslik uchun
+
+        await repo.log_admin_action(
+            cq.from_user.id, "BROADCAST", None, None,
+            f"yuborildi: {sent}, xato: {failed}, yangi bloklangan: {blocked}")
+        await cq.message.answer(
+            f"✅ Reklama yuborildi!\n\n📨 Muvaffaqiyatli: {sent}\n❌ Xato: {failed}"
+            f"\n🚫 Yangi bloklangan (avtomatik aniqlangan): {blocked}",
+            reply_markup=kb.admin_sections_kb())
+    finally:
+        _broadcast_in_progress = False
+>>>>>>> 963967d (Render deploy uchun tayyor)

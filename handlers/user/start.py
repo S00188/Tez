@@ -8,6 +8,10 @@ from aiogram.types import Message
 import database.repo as repo
 import keyboards.keyboards as kb
 from services.codes import decode_referral
+<<<<<<< HEAD
+=======
+from services.flow import abandon_pending_flow
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 logger = logging.getLogger(__name__)
 router = Router(name="user_start")
@@ -42,6 +46,7 @@ async def on_start_deep(message: Message):
 
     await _greet(message, message.from_user.id)
 
+<<<<<<< HEAD
     if is_new and ref_id:
         referrer = await repo.get_user(ref_id)
         referral_on = (await repo.get_setting("referral_enabled", "1")) == "1"
@@ -58,6 +63,25 @@ async def on_start_deep(message: Message):
                     f"🎁 Balansingizga {bonus:,} so'm qo'shildi.")
             except Exception:
                 logger.warning("Referal bonus xabari yuborilmadi: %s", ref_id)
+=======
+    # MUHIM: bonus endi shu yerda — ro'yxatdan o'tishning o'zidayoq —
+    # berilmaydi. Fake/bot akkauntlar orqali balans "farming" qilish
+    # xavfini kamaytirish uchun bonus faqat taklif qilingan foydalanuvchi
+    # birinchi marta haqiqiy to'lov qilganda (ad_pay_balance/
+    # order_pay_balance/unlock_pay_balance yoki admin tasdiqlaganda)
+    # repo.try_grant_referral_bonus() orqali beriladi.
+    if is_new and ref_id:
+        referrer = await repo.get_user(ref_id)
+        if referrer:
+            try:
+                await message.bot.send_message(
+                    ref_id,
+                    "🤝 Siz orqali botga yangi foydalanuvchi qo'shildi!\n"
+                    "🎁 U birinchi to'lovni amalga oshirgach, balansingizga "
+                    "bonus qo'shiladi.")
+            except Exception:
+                logger.warning("Referal xabari yuborilmadi: %s", ref_id)
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 
 @router.message(CommandStart())
@@ -72,7 +96,14 @@ async def on_start(message: Message):
 
 @router.message(Command("menu"))
 @router.message(F.text == kb.BTN_HOME)
+<<<<<<< HEAD
 async def on_menu(message: Message):
+=======
+async def on_menu(message: Message, state: FSMContext):
+    # Foydalanuvchi to'lov/chek bosqichida turib "🏠 Bosh menyu" bossa ham,
+    # yarim qolgan yozuv CANCELLED qilinishi va FSM state tozalanishi kerak.
+    await abandon_pending_flow(state)
+>>>>>>> 963967d (Render deploy uchun tayyor)
     is_admin = await repo.is_admin(message.from_user.id)
     await message.answer("🏠 Bosh menyu", reply_markup=kb.main_menu_rb(is_admin=is_admin))
 
@@ -86,6 +117,10 @@ async def on_rules(message: Message):
 @router.message(Command("cancel"))
 @router.message(F.text == kb.BTN_CANCEL)
 async def on_cancel(message: Message, state: FSMContext):
+<<<<<<< HEAD
     await state.clear()
+=======
+    await abandon_pending_flow(state)
+>>>>>>> 963967d (Render deploy uchun tayyor)
     is_admin = await repo.is_admin(message.from_user.id)
     await message.answer("❌ Bekor qilindi.", reply_markup=kb.main_menu_rb(is_admin=is_admin))

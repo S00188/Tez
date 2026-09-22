@@ -6,8 +6,14 @@ from aiogram.types import CallbackQuery, Message
 
 import database.repo as repo
 import keyboards.keyboards as kb
+<<<<<<< HEAD
 from services.payment import offer_payment
 from services.channel import publish_ad
+=======
+from services.payment import offer_payment, maybe_notify_referral_bonus
+from services.channel import publish_ad
+from services.flow import abandon_pending_flow
+>>>>>>> 963967d (Render deploy uchun tayyor)
 from states import AdStates
 
 logger = logging.getLogger(__name__)
@@ -16,6 +22,14 @@ router = Router(name="user_ads")
 
 @router.message(F.text == kb.BTN_AD)
 async def ad_begin(message: Message, state: FSMContext):
+<<<<<<< HEAD
+=======
+    # Agar foydalanuvchi boshqa (yoki shu) oqimda to'lovni yakunlamay
+    # qaytadan "E'lon berish" bossa, eski to'lanmagan yozuv CANCELLED
+    # qilinadi — aks holda u abadiy "faol" bo'lib qolar edi.
+    await abandon_pending_flow(state)
+    await repo.expire_stale_pending()
+>>>>>>> 963967d (Render deploy uchun tayyor)
     user = await repo.get_or_create_user(message.from_user.id)
     active = await repo.count_user_active_ads(user["telegram_id"])
     max_active = await repo.get_int_setting("max_active_ads", 5)
@@ -48,7 +62,14 @@ async def ok_dismiss(cq: CallbackQuery):
 
 @router.callback_query(F.data == "cancel")
 async def cancel_flow(cq: CallbackQuery, state: FSMContext):
+<<<<<<< HEAD
     await state.clear()
+=======
+    # Yarim qolgan e'lon/zakaz bo'lsa CANCELLED qilib belgilaymiz, aks
+    # holda "❌ Bekor qilish" bosilgan yozuv abadiy WAITING_PAYMENT/
+    # WAITING_RECEIPT holatida "faol" bo'lib qolar edi.
+    await abandon_pending_flow(state)
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await cq.answer("Bekor qilindi")
     is_admin = await repo.is_admin(cq.from_user.id)
     try:
@@ -116,10 +137,34 @@ async def ad_pay_balance(cq: CallbackQuery, state: FSMContext):
     if balance < price:
         await cq.answer("Balansingiz yetarli emas.", show_alert=True)
         return
+<<<<<<< HEAD
     await repo.add_balance(cq.from_user.id, -price)
     await repo.create_payment(user_id=cq.from_user.id, ptype="AD_PUBLICATION",
                                amount=price, ad_id=ad_id, status="APPROVED")
     msg_id = await publish_ad(cq.bot, await repo.get_ad(ad_id))
+=======
+
+    # Atomik compare-and-swap: tugma tez-tez ikki marta bosilsa (yoki
+    # skript orqali) ham, faqat BITTA so'rov statusni WAITING_PAYMENT'dan
+    # PROCESSING'ga o'tkaza oladi — ikkinchisi 0 qator yangilanganini
+    # ko'rib to'xtaydi. Shu tufayli balans ikki marta yechilmaydi va
+    # e'lon kanalga ikki marta joylanmaydi.
+    locked = await repo.cas_update_status("ads", ad_id, "WAITING_PAYMENT",
+                                           status="PROCESSING")
+    if not locked:
+        await cq.answer("Bu e'lon allaqachon qayta ishlanmoqda.", show_alert=True)
+        return
+
+    await repo.add_balance(cq.from_user.id, -price)
+    await repo.create_payment(user_id=cq.from_user.id, ptype="AD_PUBLICATION",
+                               amount=price, ad_id=ad_id, status="APPROVED")
+    await maybe_notify_referral_bonus(cq.bot, cq.from_user.id)
+    msg_id = await publish_ad(cq.bot, await repo.get_ad(ad_id))
+    if not msg_id:
+        # kanalga joylash muvaffaqiyatsiz bo'lsa — admin ko'rib chiqishi
+        # uchun holatni saqlab qo'yamiz (PROCESSING'da qolib ketmasin)
+        await repo.update_ad(ad_id, status="WAITING_ADMIN")
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await state.clear()
     await cq.answer("✅ To'landi!")
     if msg_id:
@@ -141,7 +186,15 @@ async def ad_pay_card(cq: CallbackQuery, state: FSMContext):
         await cq.answer("Bu e'lon topilmadi yoki allaqachon qayta ishlangan.",
                          show_alert=True)
         return
+<<<<<<< HEAD
     await repo.update_ad(ad_id, status="WAITING_RECEIPT")
+=======
+    locked = await repo.cas_update_status("ads", ad_id, "WAITING_PAYMENT",
+                                           status="WAITING_RECEIPT")
+    if not locked:
+        await cq.answer("Bu e'lon allaqachon qayta ishlanmoqda.", show_alert=True)
+        return
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await state.set_state(AdStates.awaiting_receipt)
     await cq.answer()
     await cq.message.answer(

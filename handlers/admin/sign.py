@@ -37,9 +37,12 @@ async def msg_sign_text(message: Message, state: FSMContext):
         "pastdan qo'shilib kanalga chiqadi.",
         reply_markup=kb.admin_sections_kb())
 
+<<<<<<< HEAD
 
 async def add_sign_to_caption(caption: str) -> str:
     if not caption:
         return caption
     sign = await repo.get_setting("sign_text") or repo.SIGN_DEFAULT
     return f"{caption.rstrip()}\n\n{sign}"
+=======
+>>>>>>> 963967d (Render deploy uchun tayyor)

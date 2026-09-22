@@ -5,9 +5,17 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
+<<<<<<< HEAD
 import database.repo as repo
 import keyboards.keyboards as kb
 from services.channel import publish_ad, publish_order, delete_channel_post
+=======
+import config
+import database.repo as repo
+import keyboards.keyboards as kb
+from services.channel import publish_ad, publish_order, delete_channel_post
+from services.payment import maybe_notify_referral_bonus
+>>>>>>> 963967d (Render deploy uchun tayyor)
 from states import RejectStates, SettingsStates
 
 logger = logging.getLogger(__name__)
@@ -58,11 +66,16 @@ async def admin_sections(cq: CallbackQuery):
 
 
 # ============== KUTILAYOTGANLAR / CHEK MODERATSIYASI ==============
+<<<<<<< HEAD
 @router.callback_query(F.data == "admin:pending")
+=======
+@router.callback_query(F.data.regexp(r"^admin:pending(:next:(\d+))?$"))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 async def admin_pending(cq: CallbackQuery):
     if not await _guard(cq):
         await cq.answer("⛔️", show_alert=True)
         return
+<<<<<<< HEAD
     payments = await repo.list_payments_by_status("WAITING_ADMIN", limit=1)
     total = await repo.count_pending_payments()
     await cq.answer()
@@ -80,6 +93,38 @@ async def admin_pending(cq: CallbackQuery):
                                        reply_markup=kb.receipt_admin_kb(p["id"]))
     else:
         await cq.message.answer(text, reply_markup=kb.receipt_admin_kb(p["id"]))
+=======
+    parts = cq.data.split(":")
+    offset = int(parts[2]) if len(parts) > 2 else 0
+    payments = await repo.list_payments_by_status("WAITING_ADMIN", limit=1, offset=offset)
+    total = await repo.count_pending_payments()
+    await cq.answer()
+    if not payments:
+        text = "✅ Hozircha kutilayotgan to'lov yo'q." if offset == 0 else \
+            "✅ Boshqa kutilayotgan to'lov yo'q."
+        await cq.message.edit_text(text, reply_markup=kb.back_to_admin_kb())
+        return
+    p = payments[0]
+    target = f"🆔 AD: {p['ad_id']}" if p["ad_id"] else f"🆔 ORDER: {p['order_id']}"
+    text = (f"⏳ Kutilayotgan to'lovlar: {total} ta ({offset + 1}-{offset + 1})\n\n"
+            f"💳 To'lov #{p['id']} ({p['type']})\n"
+            f"👤 user_id: {p['user_id']}\n💵 Summa: {p['amount']:,} so'm\n{target}")
+    # Tasdiqlash/rad etish tugmalari BILAN BIRGA "Keyingisi" ham ko'rsatiladi
+    approve_reject = [
+        (f"pay:approve:{p['id']}", "✅ Tasdiqlash"),
+        (f"pay:reject:{p['id']}", "❌ Rad etish"),
+    ]
+    nav = []
+    if offset + 1 < total:
+        nav.append((f"admin:pending:next:{offset + 1}", "➡️ Keyingisi"))
+    nav.append(("admin:sections", "⬅️ Admin menyu"))
+    markup = kb.ipb(approve_reject + nav, widths=(2, len(nav)))
+    if p.get("receipt_file_id"):
+        await cq.message.answer_photo(p["receipt_file_id"], caption=text,
+                                       reply_markup=markup)
+    else:
+        await cq.message.answer(text, reply_markup=markup)
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 
 async def _notify_user(bot, telegram_id, text):
@@ -106,6 +151,10 @@ async def pay_approve(cq: CallbackQuery):
                                approved_by=cq.from_user.id)
     await repo.log_admin_action(cq.from_user.id, "APPROVE_PAYMENT", "payment",
                                  str(payment_id))
+<<<<<<< HEAD
+=======
+    await maybe_notify_referral_bonus(cq.bot, payment["user_id"])
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await cq.answer("✅ Tasdiqlandi")
 
     if payment["type"] == "AD_PUBLICATION" and payment["ad_id"]:
@@ -203,12 +252,36 @@ async def pay_reject_reason(message: Message, state: FSMContext):
         f"❌ To'lovingiz rad etildi.\n\nSabab: {message.text}")
 
 
+<<<<<<< HEAD
 # ============== E'LONLAR / ZAKAZLAR RO'YXATI (qisqa) ==============
 @router.callback_query(F.data == "admin:ads")
+=======
+# ============== E'LONLAR / ZAKAZLAR RO'YXATI (sahifalangan) ==============
+_ADMIN_LIST_PAGE = 10
+
+
+def _admin_list_kb(kind, items, offset, total):
+    section = "admin:ads" if kind == "ad" else "admin:orders"
+    rows = [(f"admin:item:{kind}:{it['id']}:{offset}",
+              f"{it['public_code']} — {kb.STATUS_LABELS.get(it['status'], it['status'])}")
+             for it in items]
+    nav = []
+    if offset > 0:
+        nav.append((f"{section}:{max(0, offset - _ADMIN_LIST_PAGE)}", "⬅️ Oldingi"))
+    if offset + _ADMIN_LIST_PAGE < total:
+        nav.append((f"{section}:{offset + _ADMIN_LIST_PAGE}", "➡️ Keyingi"))
+    markup_rows = rows + nav + [("admin:sections", "⬅️ Admin menyu")]
+    widths = (1,) * len(rows) + ((len(nav),) if nav else ()) + (1,)
+    return kb.ipb(markup_rows, widths=widths)
+
+
+@router.callback_query(F.data.regexp(r"^admin:ads(:(\d+))?$"))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 async def admin_ads(cq: CallbackQuery):
     if not await _guard(cq):
         await cq.answer("⛔️", show_alert=True)
         return
+<<<<<<< HEAD
     from database.db import get_db
     conn = await get_db()
     cur = await conn.execute(
@@ -226,10 +299,23 @@ async def admin_ads(cq: CallbackQuery):
 
 
 @router.callback_query(F.data == "admin:orders")
+=======
+    parts = cq.data.split(":")
+    offset = int(parts[2]) if len(parts) > 2 else 0
+    items = await repo.list_ads_admin(limit=_ADMIN_LIST_PAGE, offset=offset)
+    total = await repo.count_ads_admin()
+    await cq.answer()
+    text = f"📢 E'lonlar (jami {total} ta) — tanlang:" if items else "📢 E'lonlar yo'q."
+    await cq.message.edit_text(text, reply_markup=_admin_list_kb("ad", items, offset, total))
+
+
+@router.callback_query(F.data.regexp(r"^admin:orders(:(\d+))?$"))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 async def admin_orders(cq: CallbackQuery):
     if not await _guard(cq):
         await cq.answer("⛔️", show_alert=True)
         return
+<<<<<<< HEAD
     from database.db import get_db
     conn = await get_db()
     cur = await conn.execute(
@@ -244,6 +330,64 @@ async def admin_orders(cq: CallbackQuery):
                  for r in rows]
         text = "🔵 So'nggi zakazlar:\n\n" + "\n".join(lines)
     await cq.message.edit_text(text, reply_markup=kb.back_to_admin_kb())
+=======
+    parts = cq.data.split(":")
+    offset = int(parts[2]) if len(parts) > 2 else 0
+    items = await repo.list_orders_admin(limit=_ADMIN_LIST_PAGE, offset=offset)
+    total = await repo.count_orders_admin()
+    await cq.answer()
+    text = f"🔵 Zakazlar (jami {total} ta) — tanlang:" if items else "🔵 Zakazlar yo'q."
+    await cq.message.edit_text(text, reply_markup=_admin_list_kb("order", items, offset, total))
+
+
+@router.callback_query(F.data.regexp(r"^admin:item:(ad|order):(\d+):(\d+)$"))
+async def admin_item_detail(cq: CallbackQuery):
+    if not await _guard(cq):
+        await cq.answer("⛔️", show_alert=True)
+        return
+    _, _, kind, item_id, offset = cq.data.split(":")
+    item_id, offset = int(item_id), int(offset)
+    item = await repo.get_ad(item_id) if kind == "ad" else await repo.get_order(item_id)
+    await cq.answer()
+    if not item:
+        await cq.message.edit_text("Topilmadi.", reply_markup=kb.back_to_admin_kb())
+        return
+    label = kb.STATUS_LABELS.get(item["status"], item["status"])
+    body = item.get("caption") or item.get("text") or ""
+    text = (f"🆔 {item['public_code']}\n📌 Holat: {label}\n👤 user_id: {item['user_id']}"
+            f"\n\n{body}")
+    await cq.message.edit_text(text, reply_markup=kb.admin_item_detail_kb(kind, item_id, offset))
+
+
+@router.callback_query(F.data.regexp(r"^admin:item_delete:(ad|order):(\d+):(\d+)$"))
+async def admin_item_delete(cq: CallbackQuery):
+    """Admin panelidan istalgan holatdagi e'lon/zakazni to'g'ridan-to'g'ri
+    o'chirish — avval bu imkoniyat umuman yo'q edi, faqat foydalanuvchining
+    o'zi (va faqat PUBLISHED holatda) o'chira olardi."""
+    if not await _guard(cq):
+        await cq.answer("⛔️", show_alert=True)
+        return
+    _, _, kind, item_id, offset = cq.data.split(":")
+    item_id, offset = int(item_id), int(offset)
+    item = await repo.get_ad(item_id) if kind == "ad" else await repo.get_order(item_id)
+    if not item:
+        await cq.answer("Topilmadi.", show_alert=True)
+        return
+    if item.get("channel_message_id"):
+        await delete_channel_post(cq.bot, item["channel_message_id"])
+    if kind == "ad":
+        await repo.soft_delete_ad(item_id)
+    else:
+        await repo.soft_delete_order(item_id)
+    await repo.log_admin_action(cq.from_user.id, "ADMIN_DELETE_ITEM", kind, str(item_id))
+    await cq.answer("🗑 O'chirildi")
+    items = (await repo.list_ads_admin(limit=_ADMIN_LIST_PAGE, offset=offset) if kind == "ad"
+             else await repo.list_orders_admin(limit=_ADMIN_LIST_PAGE, offset=offset))
+    total = (await repo.count_ads_admin() if kind == "ad" else await repo.count_orders_admin())
+    label = "E'lonlar" if kind == "ad" else "Zakazlar"
+    text = f"🗑 O'chirildi.\n\n{'📢' if kind == 'ad' else '🔵'} {label} (jami {total} ta):"
+    await cq.message.edit_text(text, reply_markup=_admin_list_kb(kind, items, offset, total))
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
 
 @router.callback_query(F.data == "admin:users")
@@ -318,6 +462,86 @@ async def admin_setkey(cq: CallbackQuery, state: FSMContext):
         f"⚙️ {key}\n\nHozirgi qiymat:\n{current}\n\nYangi qiymatni yuboring:")
 
 
+<<<<<<< HEAD
+=======
+# ============== ADMINLAR RO'YXATI ==============
+@router.callback_query(F.data == "admin:admins")
+async def admin_admins(cq: CallbackQuery):
+    if not await _guard(cq):
+        await cq.answer("⛔️", show_alert=True)
+        return
+    ids = await repo.list_admin_ids()
+    env_ids = set(config.ADMIN_IDS)
+    lines = [f"• {i}" + (" (.env, o'chirib bo'lmaydi)" if i in env_ids else "")
+             for i in ids]
+    await cq.answer()
+    await cq.message.edit_text(
+        "👤 Adminlar:\n\n" + ("\n".join(lines) if lines else "— yo'q —"),
+        reply_markup=kb.admins_menu_kb())
+
+
+@router.callback_query(F.data == "admin:add_admin")
+async def admin_add_admin_start(cq: CallbackQuery, state: FSMContext):
+    if not await _guard(cq):
+        await cq.answer("⛔️", show_alert=True)
+        return
+    await state.set_state(SettingsStates.awaiting_admin_id)
+    await state.update_data(admin_action="add")
+    await cq.answer()
+    await cq.message.edit_text(
+        "➕ Yangi admin qilib tayinlamoqchi bo'lgan foydalanuvchining "
+        "Telegram ID raqamini yuboring:", reply_markup=kb.cancel_kb())
+
+
+@router.callback_query(F.data == "admin:remove_admin")
+async def admin_remove_admin_start(cq: CallbackQuery, state: FSMContext):
+    if not await _guard(cq):
+        await cq.answer("⛔️", show_alert=True)
+        return
+    await state.set_state(SettingsStates.awaiting_admin_id)
+    await state.update_data(admin_action="remove")
+    await cq.answer()
+    await cq.message.edit_text(
+        "➖ Adminlikdan olib tashlamoqchi bo'lgan foydalanuvchining "
+        "Telegram ID raqamini yuboring:", reply_markup=kb.cancel_kb())
+
+
+@router.message(SettingsStates.awaiting_admin_id, F.text)
+async def admin_set_admin_id(message: Message, state: FSMContext):
+    if not await repo.is_admin(message.from_user.id):
+        return
+    data = await state.get_data()
+    action = data.get("admin_action")
+    await state.clear()
+    raw = message.text.strip()
+    if not raw.lstrip("-").isdigit():
+        await message.answer("⚠️ Noto'g'ri format. Faqat raqam (Telegram ID) yuboring.",
+                              reply_markup=kb.admin_sections_kb())
+        return
+    target_id = int(raw)
+
+    if action == "add":
+        await repo.add_admin(target_id, added_by=message.from_user.id)
+        await repo.log_admin_action(message.from_user.id, "ADD_ADMIN", "user",
+                                     str(target_id))
+        await message.answer(f"✅ {target_id} admin qilib tayinlandi.",
+                              reply_markup=kb.admin_sections_kb())
+    elif action == "remove":
+        ok = await repo.remove_admin(target_id, removed_by=message.from_user.id)
+        if ok:
+            await repo.log_admin_action(message.from_user.id, "REMOVE_ADMIN", "user",
+                                         str(target_id))
+            await message.answer(f"✅ {target_id} adminlikdan olib tashlandi.",
+                                  reply_markup=kb.admin_sections_kb())
+        else:
+            await message.answer(
+                "⛔️ Bu foydalanuvchi .env orqali admin qilingan — bazadan "
+                "olib tashlab bo'lmaydi.", reply_markup=kb.admin_sections_kb())
+    else:
+        await message.answer("Xatolik yuz berdi.", reply_markup=kb.admin_sections_kb())
+
+
+>>>>>>> 963967d (Render deploy uchun tayyor)
 @router.message(SettingsStates.awaiting_value, F.text)
 async def admin_set_value(message: Message, state: FSMContext):
     if not await repo.is_admin(message.from_user.id):

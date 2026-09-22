@@ -26,7 +26,11 @@ async def referral_menu(message: Message):
         f"💵 Balansingiz: {user.get('balance', 0):,} so'm\n\n"
         f"🔗 Sizning havolangiz:\n{link}\n\n"
         f"🤝 Taklif qilganlaringiz: {ref_count}\n"
+<<<<<<< HEAD
         f"🎁 Har bir yangi do'st uchun: {bonus:,} so'm\n\n"
+=======
+        f"🎁 Har bir yangi do'st BIRINCHI marta to'lov qilganda: {bonus:,} so'm\n\n"
+>>>>>>> 963967d (Render deploy uchun tayyor)
         "Ushbu balansni faqat bot ichidagi xizmatlar (e'lon, zakaz, kontakt) "
         "uchun ishlatishingiz mumkin."
     )

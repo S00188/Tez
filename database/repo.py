@@ -228,6 +228,42 @@ async def update_ad(ad_id, **fields):
     await db.commit()
 
 
+<<<<<<< HEAD
+=======
+async def cas_update_status(table, item_id, expected_status, **fields):
+    """Atomik compare-and-swap: yozuv hozir aynan `expected_status`da
+    bo'lsagina yangilaydi (bitta SQL UPDATE ichida tekshirish+yozish).
+    Bu ikkita tugmani tez-tez bosish yoki tarmoq kechikishi tufayli
+    yuzaga keladigan race condition'larni (bir xil to'lovni ikki marta
+    qayta ishlash) oldini oladi. Qaytaradi: yangilangan qatorlar soni
+    (0 — allaqachon boshqa holatga o'tgan, 1 — muvaffaqiyatli)."""
+    if not fields:
+        return 0
+    keys = ", ".join(f"{k} = ?" for k in fields)
+    db = await get_db()
+    cur = await db.execute(
+        f"UPDATE {table} SET {keys} WHERE id = ? AND status = ?",
+        list(fields.values()) + [item_id, expected_status])
+    await db.commit()
+    return cur.rowcount
+
+
+async def expire_stale_pending(hours=24):
+    """To'lov qilinmay/chek yubormay tashlab ketilgan (WAITING_PAYMENT /
+    WAITING_RECEIPT holatidagi) yozuvlarni belgilangan soatdan keyin
+    avtomatik CANCELLED qiladi — aks holda ular abadiy \"faol\" bo'lib,
+    foydalanuvchining kvotasini band qilib turadi."""
+    db = await get_db()
+    cutoff = f"-{int(hours)} hours"
+    for table in ("ads", "orders"):
+        await db.execute(
+            f"UPDATE {table} SET status = 'CANCELLED' "
+            f"WHERE status IN ('WAITING_PAYMENT','WAITING_RECEIPT') "
+            f"AND created_at < datetime('now', ?)", (cutoff,))
+    await db.commit()
+
+
+>>>>>>> 963967d (Render deploy uchun tayyor)
 async def soft_delete_ad(ad_id):
     await update_ad(ad_id, deleted_at=_now(), status="DELETED")
 
@@ -287,6 +323,37 @@ async def update_order(order_id, **fields):
     await db.commit()
 
 
+<<<<<<< HEAD
+=======
+async def list_ads_admin(limit=10, offset=0):
+    db = await get_db()
+    cur = await db.execute(
+        "SELECT * FROM ads WHERE deleted_at IS NULL ORDER BY id DESC "
+        "LIMIT ? OFFSET ?", (limit, offset))
+    return [row_to_dict(r) for r in await cur.fetchall()]
+
+
+async def count_ads_admin():
+    db = await get_db()
+    cur = await db.execute("SELECT COUNT(*) FROM ads WHERE deleted_at IS NULL")
+    return (await cur.fetchone())[0]
+
+
+async def list_orders_admin(limit=10, offset=0):
+    db = await get_db()
+    cur = await db.execute(
+        "SELECT * FROM orders WHERE deleted_at IS NULL ORDER BY id DESC "
+        "LIMIT ? OFFSET ?", (limit, offset))
+    return [row_to_dict(r) for r in await cur.fetchall()]
+
+
+async def count_orders_admin():
+    db = await get_db()
+    cur = await db.execute("SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL")
+    return (await cur.fetchone())[0]
+
+
+>>>>>>> 963967d (Render deploy uchun tayyor)
 async def soft_delete_order(order_id):
     await update_order(order_id, deleted_at=_now(), status="DELETED")
 
@@ -336,11 +403,19 @@ async def update_payment(payment_id, **fields):
     await db.commit()
 
 
+<<<<<<< HEAD
 async def list_payments_by_status(status, limit=50):
     db = await get_db()
     cur = await db.execute(
         "SELECT * FROM payments WHERE status = ? ORDER BY id ASC LIMIT ?",
         (status, limit))
+=======
+async def list_payments_by_status(status, limit=50, offset=0):
+    db = await get_db()
+    cur = await db.execute(
+        "SELECT * FROM payments WHERE status = ? ORDER BY id ASC LIMIT ? OFFSET ?",
+        (status, limit, offset))
+>>>>>>> 963967d (Render deploy uchun tayyor)
     return [row_to_dict(r) for r in await cur.fetchall()]
 
 
@@ -449,11 +524,19 @@ async def update_complaint(complaint_id, **fields):
     await db.commit()
 
 
+<<<<<<< HEAD
 async def list_complaints(status="OPEN", limit=50):
     db = await get_db()
     cur = await db.execute(
         "SELECT * FROM complaints WHERE status = ? ORDER BY id DESC LIMIT ?",
         (status, limit))
+=======
+async def list_complaints(status="OPEN", limit=50, offset=0):
+    db = await get_db()
+    cur = await db.execute(
+        "SELECT * FROM complaints WHERE status = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+        (status, limit, offset))
+>>>>>>> 963967d (Render deploy uchun tayyor)
     return [row_to_dict(r) for r in await cur.fetchall()]
 
 
@@ -485,6 +568,30 @@ async def list_admin_actions(limit=50):
     return [row_to_dict(r) for r in await cur.fetchall()]
 
 
+<<<<<<< HEAD
+=======
+async def try_grant_referral_bonus(telegram_id, bonus_amount) -> bool:
+    """Referal bonusini FAQAT bir marta va faqat referrer_by mavjud
+    bo'lsagina beradi (compare-and-swap: referral_bonus_paid=0 -> 1).
+    Ro'yxatdan o'tishning o'zidayoq emas, balki referal orqali kelgan
+    foydalanuvchi birinchi marta muvaffaqiyatli to'lov qilganda
+    chaqiriladi — bu soxta akkauntlar orqali balans \"farming\" qilish
+    xavfini kamaytiradi. Qaytaradi: bonus berilgan bo'lsa True."""
+    user = await get_user(telegram_id)
+    if not user or not user.get("referred_by") or user.get("referral_bonus_paid"):
+        return False
+    db = await get_db()
+    cur = await db.execute(
+        "UPDATE users SET referral_bonus_paid = 1 WHERE telegram_id = ? "
+        "AND referral_bonus_paid = 0", (telegram_id,))
+    await db.commit()
+    if cur.rowcount:
+        await add_balance(user["referred_by"], bonus_amount)
+        return True
+    return False
+
+
+>>>>>>> 963967d (Render deploy uchun tayyor)
 # ================= REFERAL / STATISTIKA =================
 async def get_referral_count(telegram_id):
     db = await get_db()

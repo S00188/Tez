@@ -31,11 +31,23 @@ def build_dispatcher() -> Dispatcher:
     dp.message.middleware(BlockedUserMiddleware())
     dp.callback_query.middleware(BlockedUserMiddleware())
 
+<<<<<<< HEAD
     from handlers.user import start, ads, orders, mine, referral, complaint
+=======
+    from handlers.user import start, menu, ads, orders, mine, referral, complaint
+>>>>>>> 963967d (Render deploy uchun tayyor)
     from handlers.admin import panel, broadcast, receipts, sign
 
     # Foydalanuvchi routerlari
     dp.include_router(start.router)
+<<<<<<< HEAD
+=======
+    # MUHIM: menu.router har doim ads/orders/mine/referral/admin
+    # routerlaridan OLDIN turishi kerak — aks holda ularning menyu
+    # tugmalari boshqa oqimning FSM-state catch-all handlerlariga
+    # "yutilib" ketishi mumkin (batafsili: handlers/user/menu.py).
+    dp.include_router(menu.router)
+>>>>>>> 963967d (Render deploy uchun tayyor)
     dp.include_router(ads.router)
     dp.include_router(orders.router)
     dp.include_router(mine.router)
@@ -53,6 +65,12 @@ def build_dispatcher() -> Dispatcher:
 
 async def on_startup(bot: Bot):
     await init_db()
+<<<<<<< HEAD
+=======
+    # Bot to'xtab turgan vaqtda tashlab ketilgan (hech qachon to'lanmagan/
+    # chek yubormagan) e'lon-zakazlarni ishga tushishda tozalab qo'yamiz.
+    await repo.expire_stale_pending()
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await bot.set_my_commands([
         BotCommand(command="start", description="🏠 Bosh menyu"),
         BotCommand(command="menu", description="🏠 Bosh menyu"),
@@ -62,6 +80,7 @@ async def on_startup(bot: Bot):
 
     if config.RUN_MODE == "webhook":
         if not config.WEBHOOK_URL:
+<<<<<<< HEAD
             # MUHIM: bu yerda SystemExit ishlatilmaydi — SystemExit
             # Exception'dan emas, BaseException'dan meros oladi, shuning
             # uchun uni chaqiruvchi tarafdagi `except Exception` ushlay
@@ -72,6 +91,10 @@ async def on_startup(bot: Bot):
             raise RuntimeError(
                 "RUN_MODE=webhook, lekin WEBHOOK_HOST aniqlanmadi (na .env'da "
                 "ko'rsatilgan, na Render RENDER_EXTERNAL_URL orqali berilgan)!")
+=======
+            raise SystemExit(
+                "RUN_MODE=webhook, lekin WEBHOOK_HOST .env'da ko'rsatilmagan!")
+>>>>>>> 963967d (Render deploy uchun tayyor)
         await bot.set_webhook(
             url=config.WEBHOOK_URL,
             secret_token=config.WEBHOOK_SECRET or None,
@@ -152,18 +175,24 @@ async def _run_webhook_async():
     await site.start()
     logger.info("✅ Port %s ochildi — Render health-check endi javob oladi.",
                 config.PORT)
+<<<<<<< HEAD
     logger.info("🔎 Sozlamalar: RUN_MODE=%s WEBHOOK_HOST=%r WEBHOOK_URL=%r "
                 "PORT=%s", config.RUN_MODE, config.WEBHOOK_HOST,
                 config.WEBHOOK_URL, config.PORT)
+=======
+>>>>>>> 963967d (Render deploy uchun tayyor)
 
     # Port allaqachon ochiq, shuning uchun bu yerdagi xatolik yoki
     # sekinlik Render'ni "xizmat o'lik" deb hisoblashiga sabab bo'lmaydi.
     try:
         await on_startup(bot)
+<<<<<<< HEAD
         info = await bot.get_webhook_info()
         logger.info("🔎 Telegram getWebhookInfo -> url=%r pending=%s "
                      "last_error=%r", info.url, info.pending_update_count,
                      info.last_error_message)
+=======
+>>>>>>> 963967d (Render deploy uchun tayyor)
     except Exception:
         logger.exception(
             "on_startup bajarilishida xato (webhook to'liq o'rnatilmagan "

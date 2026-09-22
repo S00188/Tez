@@ -8,8 +8,15 @@ from aiogram.types import CallbackQuery, Message
 
 import database.repo as repo
 import keyboards.keyboards as kb
+<<<<<<< HEAD
 from services.payment import offer_payment
 from services.channel import publish_order
+=======
+from services.payment import offer_payment, maybe_notify_referral_bonus
+from services.channel import publish_order
+from services.flow import abandon_pending_flow
+from services.locks import get_lock
+>>>>>>> 963967d (Render deploy uchun tayyor)
 from states import OrderStates, UnlockStates
 
 logger = logging.getLogger(__name__)
@@ -22,6 +29,13 @@ router = Router(name="user_orders")
 @router.message(Command("order"))
 @router.message(F.text == kb.BTN_ORDER)
 async def order_begin(message: Message, state: FSMContext):
+<<<<<<< HEAD
+=======
+    # Yarim qolgan to'lanmagan zakaz bo'lsa CANCELLED qilinadi — aks holda
+    # abadiy "faol" bo'lib qolib kvotani band qilib turadi.
+    await abandon_pending_flow(state)
+    await repo.expire_stale_pending()
+>>>>>>> 963967d (Render deploy uchun tayyor)
     user = await repo.get_or_create_user(message.from_user.id)
     active = await repo.count_user_active_orders(user["telegram_id"])
     max_active = await repo.get_int_setting("max_active_orders", 5)
@@ -87,10 +101,30 @@ async def order_pay_balance(cq: CallbackQuery, state: FSMContext):
     if balance < price:
         await cq.answer("Balansingiz yetarli emas.", show_alert=True)
         return
+<<<<<<< HEAD
     await repo.add_balance(cq.from_user.id, -price)
     await repo.create_payment(user_id=cq.from_user.id, ptype="ORDER_PUBLICATION",
                                amount=price, order_id=order_id, status="APPROVED")
     msg_id = await publish_order(cq.bot, await repo.get_order(order_id))
+=======
+
+    # Atomik compare-and-swap — tugmani ikki marta tez bosishdan himoya
+    # (balans ikki marta yechilishi / zakaz kanalga ikki marta
+    # joylashtirilishining oldini oladi).
+    locked = await repo.cas_update_status("orders", order_id, "WAITING_PAYMENT",
+                                           status="PROCESSING")
+    if not locked:
+        await cq.answer("Bu zakaz allaqachon qayta ishlanmoqda.", show_alert=True)
+        return
+
+    await repo.add_balance(cq.from_user.id, -price)
+    await repo.create_payment(user_id=cq.from_user.id, ptype="ORDER_PUBLICATION",
+                               amount=price, order_id=order_id, status="APPROVED")
+    await maybe_notify_referral_bonus(cq.bot, cq.from_user.id)
+    msg_id = await publish_order(cq.bot, await repo.get_order(order_id))
+    if not msg_id:
+        await repo.update_order(order_id, status="WAITING_ADMIN")
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await state.clear()
     await cq.answer("✅ To'landi!")
     if msg_id:
@@ -112,7 +146,15 @@ async def order_pay_card(cq: CallbackQuery, state: FSMContext):
         await cq.answer("Bu zakaz topilmadi yoki allaqachon qayta ishlangan.",
                          show_alert=True)
         return
+<<<<<<< HEAD
     await repo.update_order(order_id, status="WAITING_RECEIPT")
+=======
+    locked = await repo.cas_update_status("orders", order_id, "WAITING_PAYMENT",
+                                           status="WAITING_RECEIPT")
+    if not locked:
+        await cq.answer("Bu zakaz allaqachon qayta ishlanmoqda.", show_alert=True)
+        return
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await state.set_state(OrderStates.awaiting_receipt)
     await cq.answer()
     await cq.message.answer(
@@ -211,6 +253,7 @@ async def order_apply(cq: CallbackQuery):
         logger.warning("Developerga xabar yuborib bo'lmadi: %s", cq.from_user.id)
 
 
+<<<<<<< HEAD
 async def on_developer_ack(message: Message, code: str):
     """/start orqali ham chaqirilishi mumkin (kelajakda kerak bo'lsa)."""
     order = await repo.get_order_by_code(code)
@@ -222,6 +265,8 @@ async def on_developer_ack(message: Message, code: str):
         reply_markup=kb.developer_order_kb(code, False))
 
 
+=======
+>>>>>>> 963967d (Render deploy uchun tayyor)
 # ============================================================
 #  KONTAKTNI OCHISH (developer to'lovi)
 # ============================================================
@@ -233,8 +278,18 @@ async def unlock_start(cq: CallbackQuery, state: FSMContext):
     if not order:
         await cq.message.answer("❌ Zakaz topilmadi.")
         return
+<<<<<<< HEAD
     if order["status"] == "COMPLETED":
         await cq.message.answer("❌ Bu zakaz allaqachon yopilgan — kontakt olib bo'lmaydi.")
+=======
+    if order["status"] != "PUBLISHED":
+        # Avval faqat "COMPLETED" rad etilardi — ya'ni allaqachon
+        # o'chirilgan/rad etilgan/bekor qilingan zakaz uchun ham eski
+        # kanal xabaridagi tugma orqali kontakt to'lovi qilib qo'yish
+        # mumkin edi. Endi faqat hali PUBLISHED bo'lgan zakazlar uchun
+        # kontakt sotib olishga ruxsat beriladi.
+        await cq.message.answer("❌ Bu zakaz endi mavjud emas — kontakt olib bo'lmaydi.")
+>>>>>>> 963967d (Render deploy uchun tayyor)
         return
     if order["user_id"] == cq.from_user.id:
         return
@@ -262,6 +317,7 @@ async def unlock_pay_balance(cq: CallbackQuery, state: FSMContext):
     if not order:
         await cq.answer("Zakaz topilmadi.", show_alert=True)
         return
+<<<<<<< HEAD
     price = await repo.get_int_setting("contact_price", 25000)
     balance = await repo.get_balance(cq.from_user.id)
     if balance < price:
@@ -273,6 +329,33 @@ async def unlock_pay_balance(cq: CallbackQuery, state: FSMContext):
         order_id=order_id, status="APPROVED")
     unlock_id = await repo.create_unlock(order_id, cq.from_user.id, payment_id)
     await repo.update_unlock(unlock_id, approved_at=datetime.utcnow().isoformat(timespec="seconds"))
+=======
+
+    # contact_unlocks jadvalida CAS qiladigan status ustuni yo'q (order
+    # o'zi PUBLISHED bo'lib qolaveradi), shuning uchun tugmani tez-tez
+    # bosishdan himoya qilish uchun item bo'yicha asyncio.Lock ishlatamiz.
+    lock_key = f"unlock:{order_id}:{cq.from_user.id}"
+    async with get_lock(lock_key):
+        already = await repo.get_approved_unlock(order_id, cq.from_user.id)
+        pending = await repo.has_pending_unlock(order_id, cq.from_user.id)
+        if already or pending:
+            await state.clear()
+            await cq.answer("Bu so'rov allaqachon amalga oshirilgan.", show_alert=True)
+            return
+        price = await repo.get_int_setting("contact_price", 25000)
+        balance = await repo.get_balance(cq.from_user.id)
+        if balance < price:
+            await cq.answer("Balansingiz yetarli emas.", show_alert=True)
+            return
+        await repo.add_balance(cq.from_user.id, -price)
+        payment_id = await repo.create_payment(
+            user_id=cq.from_user.id, ptype="CONTACT_UNLOCK", amount=price,
+            order_id=order_id, status="APPROVED")
+        unlock_id = await repo.create_unlock(order_id, cq.from_user.id, payment_id)
+        await repo.update_unlock(
+            unlock_id, approved_at=datetime.utcnow().isoformat(timespec="seconds"))
+    await maybe_notify_referral_bonus(cq.bot, cq.from_user.id)
+>>>>>>> 963967d (Render deploy uchun tayyor)
     await state.clear()
     owner = await repo.get_user(order["user_id"])
     uname = f"@{owner['username']}" if owner and owner.get("username") else "—"
